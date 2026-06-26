@@ -1,5 +1,8 @@
 package com.farm2future.farm2future_backend.common.result;
 
+import lombok.Data;
+
+@Data
 public class Result<T> {
     private Integer code;
     private String message;
@@ -9,16 +12,16 @@ public class Result<T> {
         this.message = message;
         this.data = data;
     }
-    private static <T> Result<T> success(){
+    public static <T> Result<T> success(){
         return new Result<>(200,"success",null);
     }
-    private static <T> Result<T> success(T data){
+    public static <T> Result<T> success(T data){
         return new Result<>(200,"success",data);
     }
-    private static <T> Result<T> fail(String message){
+    public static <T> Result<T> fail(String message){
         return new Result<>(200,message,null);
     }
-    private static <T> Result<T> fail(Integer code,String message){
+    public static <T> Result<T> fail(Integer code,String message){
         return new Result<>(code,message,null);
     }
 }
