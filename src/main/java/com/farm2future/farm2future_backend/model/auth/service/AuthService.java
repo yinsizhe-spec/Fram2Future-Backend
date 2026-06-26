@@ -197,7 +197,7 @@ public class AuthService {
             throw new BusinessException(
                     HttpStatus.UNPROCESSABLE_ENTITY,
                     "VALIDATION_ERROR",
-                    "Role must be farmer, regulator, or admin."
+                    "Role must be Farmer, Buyer, or Regulator."
             );
         }
     }

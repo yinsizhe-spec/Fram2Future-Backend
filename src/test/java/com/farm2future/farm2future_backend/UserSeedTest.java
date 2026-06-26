@@ -84,20 +84,20 @@ public class UserSeedTest {
         // 创建监管用户测试账号
         createUserIfNotExists(
                 "u2",
-                "Regulator Admin",
-                "demo@regulator.com",
+                "buyer",
+                "demo@buyer.com",
                 "123456",
-                "regulator",
+                "buyer",
                 "All Entities"
         );
 
         // 创建系统管理员测试账号
         createUserIfNotExists(
                 "u3",
-                "System Admin",
-                "demo@admin.com",
+                "regulator",
+                "demo@regulator.com",
                 "123456",
-                "admin",
+                "regulator",
                 "Farm2Future"
         );
     }
