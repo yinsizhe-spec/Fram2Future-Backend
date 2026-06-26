@@ -4,7 +4,7 @@
 server:
   # 后端服务启动端口
   # 前端请求后端时需要使用这个端口，例如：http://64.176.57.254:8080
-  port: 8080
+  port: 7020
 
 
 # ===============================
@@ -103,3 +103,8 @@ management:
         # 2. Docker / Nginx / Jenkins 部署检测
         # 3. 监控系统集成
         include: health,info
+
+app:
+  jwt:
+    secret: farm2future-enterprise-secret-key-change-this-to-a-long-random-string-2026
+    expire-hours: 24
