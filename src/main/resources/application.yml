@@ -1,0 +1,105 @@
+# ===============================
+# Server Configuration
+# ===============================
+server:
+  # 后端服务启动端口
+  # 前端请求后端时需要使用这个端口，例如：http://64.176.57.254:8080
+  port: 8080
+
+
+# ===============================
+# Spring Application Configuration
+# ===============================
+spring:
+  application:
+    # Spring Boot 应用名称
+    # 用于日志、监控、服务识别
+    name: farm2future-backend
+
+  # ===============================
+  # Database Configuration
+  # ===============================
+  datasource:
+    # MySQL 数据库连接地址
+    # 64.176.57.254：你的服务器 IP
+    # 3306：MySQL 默认端口
+    # farm2future：数据库名称
+    #
+    # useUnicode=true：启用 Unicode 编码
+    # characterEncoding=utf8：使用 UTF-8 编码
+    # serverTimezone=Asia/Kuala_Lumpur：设置数据库时区为马来西亚时间
+    # allowPublicKeyRetrieval=true：允许客户端获取 MySQL 公钥，解决 Public Key Retrieval is not allowed 问题
+    # useSSL=false：关闭 SSL 连接，开发环境常用；生产环境建议开启 SSL
+    url: jdbc:mysql://64.176.57.254:3306/farm2future?useUnicode=true&characterEncoding=utf8&serverTimezone=Asia/Kuala_Lumpur&allowPublicKeyRetrieval=true&useSSL=false
+
+    # 数据库用户名
+    # 不建议生产环境直接使用 root 用户
+    # 建议创建专门的业务数据库用户，例如 farm2future_user
+    username: root
+
+    # 数据库密码
+    # 企业级项目不建议把密码明文写在配置文件里
+    # 推荐通过环境变量传入，例如：
+    # Windows: set DB_PASSWORD=你的密码
+    # Linux: export DB_PASSWORD=你的密码
+    password: yinsizhe
+    # MySQL JDBC 驱动类
+    driver-class-name: com.mysql.cj.jdbc.Driver
+
+
+# ===============================
+# MyBatis-Plus Configuration
+# ===============================
+mybatis-plus:
+  # Mapper XML 文件位置
+  # 用于存放复杂 SQL，例如 Dashboard 统计、ESG 报表、多条件查询等
+  # 对应目录一般是：src/main/resources/mapper/
+  mapper-locations: classpath*:/mapper/**/*.xml
+
+  # 实体类扫描路径
+  # MyBatis-Plus 会扫描这个包下面的 Entity 类
+  # 例如：com.farm2future.backend.module.farm.entity
+  type-aliases-package: com.farm2future.backend.module.*.entity
+
+  configuration:
+    # 开启下划线转驼峰
+    # 数据库字段：farm_name
+    # Java 属性：farmName
+    map-underscore-to-camel-case: true
+
+  global-config:
+    db-config:
+      # 主键生成策略
+      # assign_id 表示使用 MyBatis-Plus 雪花算法生成 Long 类型 ID
+      # 适合企业级分布式系统，避免数据库自增 ID 冲突
+      id-type: assign_id
+
+      # 逻辑删除字段
+      # 数据库表中需要有 deleted 字段
+      logic-delete-field: deleted
+
+      # 删除状态值
+      # deleted = 1 表示数据已删除
+      logic-delete-value: 1
+
+      # 未删除状态值
+      # deleted = 0 表示数据正常
+      logic-not-delete-value: 0
+
+
+# ===============================
+# Spring Boot Actuator Configuration
+# ===============================
+management:
+  endpoints:
+    web:
+      exposure:
+        # 暴露健康检查和应用信息接口
+        # /actuator/health：检查服务是否正常
+        # /actuator/info：查看应用信息
+        #
+        # 企业级项目常用于：
+        # 1. 服务器健康检查
+        # 2. Docker / Nginx / Jenkins 部署检测
+        # 3. 监控系统集成
+        include: health,info
