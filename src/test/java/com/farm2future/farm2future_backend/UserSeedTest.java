@@ -69,7 +69,7 @@ public class UserSeedTest {
      * 如果邮箱已经存在，则不会重复创建。
      * </p>
      */
-    @Test
+//    @Test
     void createTestUsers() {
         // 创建农场用户测试账号
         createUserIfNotExists(

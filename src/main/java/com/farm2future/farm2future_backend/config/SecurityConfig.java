@@ -109,27 +109,25 @@ public class SecurityConfig {
 
                         /*
                          * 登录接口允许匿名访问。
-                         *
-                         * 因为用户还没有登录时，需要先调用该接口获取 Token。
                          */
                         .requestMatchers(HttpMethod.POST, "/api/auth/login").permitAll()
 
                         /*
+                         * Swagger / OpenAPI 文档允许匿名访问。
+                         */
+                        .requestMatchers(
+                                "/swagger-ui/**",
+                                "/swagger-ui.html",
+                                "/v3/api-docs/**"
+                        ).permitAll()
+
+                        /*
                          * actuator 接口允许匿名访问。
-                         *
-                         * 常用于健康检查，例如：
-                         * /actuator/health
-                         *
-                         * 如果以后部署到生产环境，
-                         * 可以考虑只开放 health，或者增加访问限制。
                          */
                         .requestMatchers("/actuator/**").permitAll()
 
                         /*
                          * 其他所有接口都必须登录后才能访问。
-                         *
-                         * 如果请求没有携带合法 Token，
-                         * Spring Security 会返回 401 或 403。
                          */
                         .anyRequest().authenticated()
                 )
