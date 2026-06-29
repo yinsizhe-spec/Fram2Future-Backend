@@ -10,7 +10,7 @@ This project provides RESTful APIs for the Farm2Future frontend, including user 
 
 Farm2Future is an agricultural digital platform designed to support farm management, ESG performance tracking, and token-based reward records.
 
-The backend system is responsible for:
+The backend system is responsible for:Yin Sizhe
 
 - Providing REST API services for the frontend
 - Managing user login and role-based access
