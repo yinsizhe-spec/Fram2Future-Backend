@@ -1,55 +1,62 @@
 # Farm2Future Backend
 
-Farm2Future Backend 是 Farm2Future 项目的后端服务，主要为前端系统提供 REST API 接口支持。
+Farm2Future Backend is the backend service for the Farm2Future agricultural digital management platform.
 
-本项目基于 Spring Boot 开发，使用 MySQL 作为数据库，MyBatis-Plus 作为 ORM 框架，主要用于处理农场数据、ESG 评分、Token 记录、交易记录、用户角色以及后台仪表盘数据。
-
----
-
-## 一、项目简介
-
-Farm2Future 是一个面向农业数字化管理的平台，旨在通过后端系统管理农场数据、ESG 评分数据和 Token 奖励数据，为前端页面提供稳定的数据接口。
-
-后端主要负责：
-
-- 提供 RESTful API 接口
-- 管理农场相关数据
-- 管理 ESG 评分数据
-- 管理 Token 奖励记录
-- 管理交易记录
-- 连接 MySQL 数据库
-- 为前端 Dashboard 页面提供统计数据
-- 支持后续用户登录、身份认证和角色权限控制
+This project provides RESTful APIs for the Farm2Future frontend, including user authentication, dashboard statistics, farm data management, ESG score records, token reward records, and transaction records.
 
 ---
 
-## 二、技术栈
+## 1. Project Overview
 
-| 技术 | 说明 |
+Farm2Future is an agricultural digital platform designed to support farm management, ESG performance tracking, and token-based reward records.
+
+The backend system is responsible for:
+
+- Providing REST API services for the frontend
+- Managing user login and role-based access
+- Managing farm information
+- Managing farm production and ESG-related data
+- Providing dashboard overview statistics
+- Recording token rewards
+- Recording transaction history
+- Connecting the frontend with the MySQL database
+- Supporting future blockchain / smart contract integration
+
+---
+
+## 2. Technology Stack
+
+| Technology | Description |
 |---|---|
-| Java 21 | 后端主要开发语言 |
-| Spring Boot 3 | 后端主框架 |
-| Spring Web | 用于开发 REST API |
-| Spring Security | 用于安全认证和权限控制 |
-| MyBatis-Plus | 数据库 ORM 框架 |
-| MySQL | 关系型数据库 |
-| JWT | Token 身份认证支持 |
-| Lombok | 简化 Java 代码 |
-| Spring Boot Actuator | 项目健康检查和监控 |
-| Springdoc OpenAPI | API 文档支持 |
-| Maven | 项目依赖管理和打包工具 |
+| Java 21 | Backend programming language |
+| Spring Boot 3 | Main backend framework |
+| Spring Web | REST API development |
+| Spring Security | Authentication and authorization |
+| JWT | Token-based login authentication |
+| MyBatis-Plus | ORM framework |
+| MySQL | Relational database |
+| Lombok | Reduces boilerplate Java code |
+| Spring Boot Actuator | Health check and monitoring |
+| Springdoc OpenAPI | Swagger API documentation |
+| Maven | Dependency management and project build tool |
 
 ---
 
-## 三、项目结构
+## 3. Project Structure
 
 ```text
 Fram2Future-Backend
+├── sql
+│   └── database scripts
 ├── src
 │   ├── main
 │   │   ├── java
 │   │   │   └── com.farm2future.farm2future_backend
 │   │   │       ├── common
+│   │   │       │   ├── exception
+│   │   │       │   ├── result
+│   │   │       │   └── security
+│   │   │       ├── config
 │   │   │       ├── model
 │   │   │       │   ├── dashboard
 │   │   │       │   ├── fram
@@ -66,38 +73,145 @@ Fram2Future-Backend
 
 ---
 
-## 四、主要功能
+## 4. Main Features
 
-### 1. Dashboard 数据接口
+### 4.1 User Authentication
 
-后端提供 Dashboard 总览接口，用于给前端首页展示统计数据。
+The backend supports user login through JWT authentication.
 
-接口示例：
+Example endpoint:
+
+```http
+POST /api/auth/login
+```
+
+Example request:
+
+```json
+{
+  "email": "demo@farmer.com",
+  "password": "123456",
+  "role": "farmer"
+}
+```
+
+Supported test users:
+
+| Role | Email | Password |
+|---|---|---|
+| Farmer | demo@farmer.com | 123456 |
+| Buyer | demo@buyer.com | 123456 |
+| Regulator | demo@regulator.com | 123456 |
+
+---
+
+### 4.2 Dashboard Overview
+
+The dashboard API provides summary data for the frontend home page.
+
+Example endpoint:
 
 ```http
 GET /api/dashboard/overview
 ```
 
-返回示例：
+Example response:
 
 ```json
 {
   "code": 200,
   "message": "success",
   "data": {
-    "totalFarms": 0,
-    "totalTokens": 0,
-    "totalTransactions": 0,
-    "averageEsgScore": 0
+    "stats": {
+      "totalFarms": 3,
+      "totalTokens": 1200,
+      "totalTransactions": 15,
+      "averageEsgScore": 86.5
+    },
+    "monthlyComparison": {
+      "farmsChange": 0,
+      "tokensChange": 120,
+      "transactionsChange": 3,
+      "esgScoreChange": 2.5
+    }
   }
 }
 ```
 
 ---
 
-### 2. 统一返回结果
+### 4.3 Farm Data Management
 
-项目使用统一的 API 返回格式，方便前端处理接口数据。
+The backend is designed to support farm data submission from the frontend.
+
+Example endpoint:
+
+```http
+POST /api/farms/{farmId}/data
+```
+
+Example request:
+
+```json
+{
+  "period": "2026-Q2",
+  "yield_kg": 1200,
+  "water_usage_liters": 5000,
+  "fertilizer_usage_kg": 120,
+  "pesticide_usage_kg": 20,
+  "labor_hours": 300,
+  "fair_wage_flag": true,
+  "compliance_pass": true
+}
+```
+
+This data can be used later for ESG score calculation and token reward generation.
+
+---
+
+### 4.4 ESG Score Records
+
+The backend stores ESG score records for farms.
+
+ESG scoring can include:
+
+- Environmental score
+- Social score
+- Governance score
+- Overall ESG score
+- Score period
+- Related farm ID
+
+---
+
+### 4.5 Token Reward Records
+
+The backend stores token reward records for farms.
+
+Possible token reward logic:
+
+- Higher ESG score gives more token rewards
+- Compliant farm data receives reward tokens
+- Token records can later be connected with blockchain smart contracts
+
+---
+
+### 4.6 Transaction Records
+
+The backend stores transaction history, such as:
+
+- Token transfers
+- Farm product transactions
+- Buyer-related purchase records
+- Reward distribution history
+
+---
+
+## 5. API Response Format
+
+All backend APIs should follow a unified response format.
+
+Success response:
 
 ```json
 {
@@ -107,50 +221,34 @@ GET /api/dashboard/overview
 }
 ```
 
----
+Failure response:
 
-### 3. MySQL 数据库连接
-
-数据库配置文件位置：
-
-```text
-src/main/resources/application.yml
-```
-
-示例配置：
-
-```yml
-spring:
-  datasource:
-    url: jdbc:mysql://localhost:3306/farm2future?useUnicode=true&characterEncoding=utf8&serverTimezone=Asia/Kuala_Lumpur&allowPublicKeyRetrieval=true&useSSL=false
-    username: root
-    password: your_password
-```
-
-注意：不要把真实数据库密码直接提交到 GitHub，建议使用环境变量。
-
-```yml
-password: ${DB_PASSWORD}
+```json
+{
+  "code": 400,
+  "message": "error message",
+  "data": null
+}
 ```
 
 ---
 
-## 五、运行环境要求
+## 6. Environment Requirements
 
-运行本项目之前，需要安装以下环境：
+Before running this project, make sure the following tools are installed:
 
-- Java 21 或以上版本
-- Maven 3.8 或以上版本
-- MySQL 8 或以上版本
+- Java 21 or above
+- Maven 3.8 or above
+- MySQL 8 or above
 - Git
 
-查看 Java 版本：
+Check Java version:
 
 ```bash
 java -version
 ```
 
-查看 Maven 版本：
+Check Maven version:
 
 ```bash
 mvn -version
@@ -158,90 +256,142 @@ mvn -version
 
 ---
 
-## 六、本地运行步骤
+## 7. Database Setup
 
-### 1. 克隆项目
+### 7.1 Create Database
+
+Login to MySQL and run:
+
+```sql
+CREATE DATABASE farm2future
+CHARACTER SET utf8mb4
+COLLATE utf8mb4_unicode_ci;
+```
+
+### 7.2 Import SQL Scripts
+
+If SQL files are provided in the `sql` directory, import them into MySQL:
+
+```bash
+mysql -u root -p farm2future < sql/your_sql_file.sql
+```
+
+---
+
+## 8. Configuration
+
+The main configuration file is:
+
+```text
+src/main/resources/application.yml
+```
+
+Recommended database configuration:
+
+```yml
+server:
+  port: 7020
+
+spring:
+  application:
+    name: farm2future-backend
+
+  datasource:
+    url: jdbc:mysql://localhost:3306/farm2future?useUnicode=true&characterEncoding=utf8&serverTimezone=Asia/Kuala_Lumpur&allowPublicKeyRetrieval=true&useSSL=false
+    username: ${DB_USERNAME}
+    password: ${DB_PASSWORD}
+    driver-class-name: com.mysql.cj.jdbc.Driver
+
+app:
+  jwt:
+    secret: ${JWT_SECRET}
+    expire-hours: 24
+```
+
+Important:
+
+Do not commit real database passwords or JWT secrets to GitHub.
+
+Use environment variables instead.
+
+Linux / macOS:
+
+```bash
+export DB_USERNAME=root
+export DB_PASSWORD=your_password
+export JWT_SECRET=farm2future-enterprise-secret-key-change-this-to-a-long-random-string
+```
+
+Windows CMD:
+
+```cmd
+set DB_USERNAME=root
+set DB_PASSWORD=your_password
+set JWT_SECRET=farm2future-enterprise-secret-key-change-this-to-a-long-random-string
+```
+
+Windows PowerShell:
+
+```powershell
+$env:DB_USERNAME="root"
+$env:DB_PASSWORD="your_password"
+$env:JWT_SECRET="farm2future-enterprise-secret-key-change-this-to-a-long-random-string"
+```
+
+---
+
+## 9. Run Locally
+
+### 9.1 Clone Repository
 
 ```bash
 git clone https://github.com/yinsizhe-spec/Fram2Future-Backend.git
 cd Fram2Future-Backend
 ```
 
----
+### 9.2 Start Project
 
-### 2. 创建数据库
-
-进入 MySQL 后执行：
-
-```sql
-CREATE DATABASE farm2future CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
-```
-
----
-
-### 3. 修改数据库配置
-
-打开配置文件：
-
-```text
-src/main/resources/application.yml
-```
-
-修改数据库连接信息：
-
-```yml
-spring:
-  datasource:
-    url: jdbc:mysql://localhost:3306/farm2future?useUnicode=true&characterEncoding=utf8&serverTimezone=Asia/Kuala_Lumpur&allowPublicKeyRetrieval=true&useSSL=false
-    username: root
-    password: your_password
-```
-
----
-
-### 4. 启动项目
-
-使用 Maven 启动：
+Using Maven:
 
 ```bash
 mvn spring-boot:run
 ```
 
-或者使用 Maven Wrapper：
+Using Maven Wrapper on Linux / macOS:
 
 ```bash
 ./mvnw spring-boot:run
 ```
 
-Windows 系统使用：
+Using Maven Wrapper on Windows:
 
-```bash
+```cmd
 mvnw.cmd spring-boot:run
+```
+
+After startup, the backend should run at:
+
+```text
+http://localhost:7020
 ```
 
 ---
 
-## 七、项目打包
+## 10. Build Project
 
-执行以下命令打包项目：
+Package the project:
 
 ```bash
 mvn clean package
 ```
 
-如果想跳过测试：
+Skip tests when packaging:
 
 ```bash
 mvn clean package -DskipTests
 ```
 
-打包完成后，JAR 文件会生成在：
-
-```text
-target/
-```
-
-运行 JAR 文件：
+Run the JAR file:
 
 ```bash
 java -jar target/farm2future-backend-0.0.1-SNAPSHOT.jar
@@ -249,73 +399,35 @@ java -jar target/farm2future-backend-0.0.1-SNAPSHOT.jar
 
 ---
 
-## 八、接口说明
+## 11. Server Deployment
 
-| 请求方法 | 接口地址 | 说明 |
-|---|---|---|
-| GET | `/api/dashboard/overview` | 获取 Dashboard 总览数据 |
-| GET | `/actuator/health` | 检查后端运行状态 |
-| GET | `/actuator/info` | 查看应用信息 |
-
----
-
-## 九、API 文档
-
-项目集成了 Springdoc OpenAPI。
-
-启动项目后，可以访问 Swagger 页面：
-
-```text
-http://localhost:8080/swagger-ui/index.html
-```
-
-OpenAPI JSON 地址：
-
-```text
-http://localhost:8080/v3/api-docs
-```
-
-如果项目端口不是 `8080`，需要把地址中的端口改成实际端口。
-
----
-
-## 十、服务器部署
-
-### 1. 打包项目
+### 11.1 Build JAR
 
 ```bash
 mvn clean package -DskipTests
 ```
 
----
+### 11.2 Upload JAR to Server
 
-### 2. 上传 JAR 文件到服务器
-
-示例服务器目录：
+Example server directory:
 
 ```text
 /root/farm2future/
 ```
 
----
-
-### 3. 启动后端服务
+### 11.3 Start Backend Service
 
 ```bash
 nohup java -jar farm2future-backend.jar > app.log 2>&1 &
 ```
 
----
-
-### 4. 查看项目是否运行
+### 11.4 Check Running Process
 
 ```bash
 ps -ef | grep farm2future-backend
 ```
 
----
-
-### 5. 查看运行日志
+### 11.5 View Logs
 
 ```bash
 tail -f app.log
@@ -323,52 +435,72 @@ tail -f app.log
 
 ---
 
-## 十一、服务器访问示例
+## 12. API Documentation
 
-如果后端部署在服务器上，接口访问格式如下：
+This project uses Springdoc OpenAPI.
+
+After starting the backend, visit:
 
 ```text
-http://服务器IP:端口号/接口路径
+http://localhost:7020/swagger-ui/index.html
 ```
 
-例如：
+OpenAPI JSON:
 
 ```text
-http://64.176.57.254:7020/api/dashboard/overview
+http://localhost:7020/v3/api-docs
 ```
 
 ---
 
-## 十二、常见问题
+## 13. Health Check
 
-### 1. MySQL 连接失败
+Spring Boot Actuator can be used to check the backend status.
 
-请检查：
+Health check endpoint:
 
-- MySQL 服务是否正在运行
-- 数据库名称是否正确
-- 用户名和密码是否正确
-- 数据库端口是否开放
-- 服务器防火墙是否允许访问 MySQL
-- 远程连接时 MySQL 是否允许远程访问
+```http
+GET /actuator/health
+```
+
+Example:
+
+```text
+http://localhost:7020/actuator/health
+```
 
 ---
 
-### 2. Public Key Retrieval is not allowed
+## 14. Common Issues
 
-如果出现：
+### 14.1 MySQL Connection Failed
+
+Check the following:
+
+- MySQL service is running
+- Database name is correct
+- Username and password are correct
+- MySQL port is open
+- Server firewall allows database connection
+- JDBC URL is correct
+
+---
+
+### 14.2 Public Key Retrieval is not allowed
+
+If this error appears:
 
 ```text
 Public Key Retrieval is not allowed
 ```
 
-可以在数据库连接 URL 中加入：
+Add this parameter to the JDBC URL:
 
 ```text
 allowPublicKeyRetrieval=true
 ```
 
-示例：
+Example:
 
 ```yml
 url: jdbc:mysql://localhost:3306/farm2future?allowPublicKeyRetrieval=true&useSSL=false
@@ -376,88 +508,101 @@ url: jdbc:mysql://localhost:3306/farm2future?allowPublicKeyRetrieval=true&useSSL
 
 ---
 
-### 3. 端口被占用
+### 14.3 Backend Started but Frontend Cannot Access API
 
-查看端口占用情况：
+Check the following:
+
+- Backend service is running
+- Backend port is correct
+- Server firewall has opened the backend port
+- Cloud server security group allows the port
+- Frontend `.env` API base URL is correct
+- CORS configuration allows the frontend domain
+- Spring Security configuration allows the target endpoint
+
+---
+
+### 14.4 Port Already in Use
+
+Check port usage:
 
 ```bash
-lsof -i:8080
+lsof -i:7020
 ```
 
-结束进程：
+Kill the process:
 
 ```bash
 kill -9 PID
 ```
 
-或者修改 `application.yml` 中的端口：
+Or change the port in `application.yml`:
 
 ```yml
 server:
-  port: 8081
+  port: 7021
 ```
 
 ---
 
-### 4. 后端启动成功但接口无法访问
+## 15. Useful API List
 
-请检查：
-
-- 后端是否真的启动成功
-- 访问端口是否正确
-- 服务器防火墙是否开放端口
-- 云服务器安全组是否开放端口
-- 前端配置的 API 地址是否正确
-- 如果使用 Nginx，检查反向代理配置是否正确
+| Method | Endpoint | Description |
+|---|---|---|
+| POST | /api/auth/login | User login |
+| GET | /api/dashboard/overview | Dashboard overview statistics |
+| POST | /api/farms/{farmId}/data | Submit farm data |
+| GET | /actuator/health | Backend health check |
+| GET | /v3/api-docs | OpenAPI JSON |
+| GET | /swagger-ui/index.html | Swagger UI page |
 
 ---
 
-## 十三、Git 提交示例
+## 16. Git Commit Guide
 
-添加 README 文件：
+After updating the README:
 
 ```bash
 git add README.md
-```
-
-提交修改：
-
-```bash
-git commit -m "docs: add Chinese README for backend project"
-```
-
-推送到 GitHub：
-
-```bash
+git commit -m "docs: update backend README"
 git push origin main
 ```
 
 ---
 
-## 十四、后续开发计划
+## 17. Future Development Plan
 
-后续可以继续完善以下功能：
+Planned improvements:
 
-- 完成用户登录接口
-- 添加 JWT 身份认证
-- 添加 Farmer、Buyer、Regulator 角色权限控制
-- 完善农场管理接口
-- 完善 ESG 评分计算逻辑
-- 完善 Token 奖励发放逻辑
-- 添加交易记录查询接口
-- 完善 Swagger API 文档
-- 添加单元测试和集成测试
-- 添加 Docker 部署支持
-- 添加 Jenkins 或 GitHub Actions 自动化部署
+- Complete all frontend API contract endpoints
+- Improve farm data submission API
+- Add ESG score calculation logic
+- Add token reward calculation logic
+- Add blockchain smart contract integration
+- Improve role-based permission control
+- Add more unit tests and integration tests
+- Add Docker deployment support
+- Add Jenkins or GitHub Actions CI/CD
+- Improve production security configuration
 
 ---
 
-## 十五、项目作者
+## 18. Repository
 
-本项目由 Farm2Future 小组开发。
-
-后端仓库地址：
+Backend repository:
 
 ```text
 https://github.com/yinsizhe-spec/Fram2Future-Backend
 ```
+
+Frontend repository:
+
+```text
+https://github.com/Joseph9807/Farm2Future-Frontend-V4.1
+```
+
+---
+
+## 19. Team
+
+This project is developed by the Farm2Future team.
