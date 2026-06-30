@@ -126,6 +126,8 @@ public class SecurityConfig {
                          */
                         .requestMatchers("/actuator/**").permitAll()
 
+                        .requestMatchers("/api/reports/esg/export/download/**").permitAll()
+
                         /*
                          * 其他所有接口都必须登录后才能访问。
                          */
