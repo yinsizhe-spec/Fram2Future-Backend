@@ -108,3 +108,7 @@ app:
   jwt:
     secret: farm2future-enterprise-secret-key-change-this-to-a-long-random-string-2026
     expire-hours: 24
+
+farm2future:
+  ai:
+    evaluate-url: https://farm2futureai.vercel.app/api/v1/ai/evaluate
