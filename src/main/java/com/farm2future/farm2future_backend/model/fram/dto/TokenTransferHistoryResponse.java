@@ -3,8 +3,9 @@ package com.farm2future.farm2future_backend.model.fram.dto;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import lombok.Data;
 
-import java.time.LocalDateTime;
-
+/**
+ * 单个 Token 转账历史返回 DTO。
+ */
 @Data
 public class TokenTransferHistoryResponse {
 
@@ -29,5 +30,5 @@ public class TokenTransferHistoryResponse {
     private String txHash;
 
     @JsonProperty("transferred_at")
-    private LocalDateTime transferredAt;
+    private String transferredAt;
 }

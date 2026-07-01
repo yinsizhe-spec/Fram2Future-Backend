@@ -3,8 +3,9 @@ package com.farm2future.farm2future_backend.model.fram.dto;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import lombok.Data;
 
-import java.time.LocalDateTime;
-
+/**
+ * Token 转账记录返回 DTO。
+ */
 @Data
 public class TokenTransferRecordResponse {
 

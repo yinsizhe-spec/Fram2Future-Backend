@@ -1,6 +1,6 @@
 package com.farm2future.farm2future_backend.model.fram.controller;
 
-import com.farm2future.farm2future_backend.model.fram.entity.TransactionListResponse;
+import com.farm2future.farm2future_backend.model.fram.dto.TransactionListResponse;
 import com.farm2future.farm2future_backend.model.fram.service.TransactionService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.web.bind.annotation.GetMapping;

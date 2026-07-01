@@ -1,4 +1,4 @@
-package com.farm2future.farm2future_backend.model.fram.entity;
+package com.farm2future.farm2future_backend.model.fram.dto;
 
 import lombok.Data;
 

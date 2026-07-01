@@ -2,8 +2,8 @@ package com.farm2future.farm2future_backend.model.fram.service;
 
 import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
 import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
-import com.farm2future.farm2future_backend.model.fram.entity.TransactionItemResponse;
-import com.farm2future.farm2future_backend.model.fram.entity.TransactionListResponse;
+import com.farm2future.farm2future_backend.model.fram.dto.TransactionItemResponse;
+import com.farm2future.farm2future_backend.model.fram.dto.TransactionListResponse;
 import com.farm2future.farm2future_backend.model.fram.entity.TransactionRecord;
 import com.farm2future.farm2future_backend.model.fram.mapper.TransactionRecordMapper;
 import lombok.RequiredArgsConstructor;
