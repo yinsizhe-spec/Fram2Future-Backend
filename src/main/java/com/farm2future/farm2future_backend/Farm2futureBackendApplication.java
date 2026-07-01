@@ -2,6 +2,7 @@ package com.farm2future.farm2future_backend;
 
 import org.springframework.boot.SpringApplication;
 import org.springframework.boot.autoconfigure.SpringBootApplication;
+import org.springframework.scheduling.annotation.EnableScheduling;
 
 /**
  * Farm2Future 后端项目启动类。
@@ -23,6 +24,7 @@ import org.springframework.boot.autoconfigure.SpringBootApplication;
  *     <li>声明当前类为配置类</li>
  * </ul>
  */
+@EnableScheduling
 @SpringBootApplication
 public class Farm2futureBackendApplication {
 
