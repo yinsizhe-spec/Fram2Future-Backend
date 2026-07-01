@@ -19,8 +19,11 @@ import org.springframework.transaction.annotation.Transactional;
 import java.security.SecureRandom;
 import java.time.LocalDateTime;
 import java.time.Year;
+import java.util.Collections;
 import java.util.HexFormat;
 import java.util.List;
+import java.util.Map;
+import java.util.stream.Collectors;
 
 @Service
 @RequiredArgsConstructor
@@ -97,6 +100,79 @@ public class TokenService {
         transactionRecordMapper.insert(transactionRecord);
 
         return new TokenIssueResponse(tokenId, txHash);
+    }
+
+    /**
+     * 查询 Token 转账记录
+     *
+     * 如果 farmId 为空：查询全部转账记录
+     * 如果 farmId 不为空：只查询该农场相关 Token 的转账记录
+     */
+    public List<TokenTransferRecordResponse> listTransferRecords(String farmId) {
+        LambdaQueryWrapper<TokenTransferRecord> transferWrapper = new LambdaQueryWrapper<>();
+
+        transferWrapper.eq(TokenTransferRecord::getDeleted, 0);
+
+        List<TokenRecord> tokenRecords;
+
+        if (farmId != null && !farmId.isBlank()) {
+            tokenRecords = tokenRecordMapper.selectList(
+                    new LambdaQueryWrapper<TokenRecord>()
+                            .eq(TokenRecord::getFarmId, farmId)
+                            .eq(TokenRecord::getDeleted, 0)
+            );
+
+            if (tokenRecords.isEmpty()) {
+                return Collections.emptyList();
+            }
+
+            List<String> tokenIds = tokenRecords.stream()
+                    .map(TokenRecord::getId)
+                    .toList();
+
+            transferWrapper.in(TokenTransferRecord::getTokenId, tokenIds);
+        } else {
+            tokenRecords = tokenRecordMapper.selectList(
+                    new LambdaQueryWrapper<TokenRecord>()
+                            .eq(TokenRecord::getDeleted, 0)
+            );
+        }
+
+        transferWrapper.orderByDesc(TokenTransferRecord::getTransferredAt);
+
+        List<TokenTransferRecord> transferRecords =
+                tokenTransferRecordMapper.selectList(transferWrapper);
+
+        Map<String, TokenRecord> tokenMap = tokenRecords.stream()
+                .collect(Collectors.toMap(
+                        TokenRecord::getId,
+                        token -> token,
+                        (oldValue, newValue) -> oldValue
+                ));
+
+        return transferRecords.stream().map(record -> {
+            TokenTransferRecordResponse response = new TokenTransferRecordResponse();
+
+            response.setId(record.getId());
+            response.setTokenId(record.getTokenId());
+
+            TokenRecord token = tokenMap.get(record.getTokenId());
+
+            if (token != null) {
+                response.setFarmId(token.getFarmId());
+                response.setAsset(token.getAsset());
+                response.setCropType(token.getCropType());
+            }
+
+            response.setOldOwner(record.getOldOwner());
+            response.setOldOwnerAddress(record.getOldOwnerAddress());
+            response.setNewOwner(record.getNewOwner());
+            response.setNewOwnerAddress(record.getNewOwnerAddress());
+            response.setTxHash(record.getTxHash());
+            response.setTransferredAt(record.getTransferredAt());
+
+            return response;
+        }).toList();
     }
 
     /**

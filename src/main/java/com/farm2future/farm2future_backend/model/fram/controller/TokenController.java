@@ -4,6 +4,7 @@ import com.farm2future.farm2future_backend.model.fram.dto.TokenIssueRequest;
 import com.farm2future.farm2future_backend.model.fram.dto.TokenIssueResponse;
 import com.farm2future.farm2future_backend.model.fram.dto.TokenListResponse;
 import com.farm2future.farm2future_backend.model.fram.dto.TokenTransferHistoryResponse;
+import com.farm2future.farm2future_backend.model.fram.dto.TokenTransferRecordResponse;
 import com.farm2future.farm2future_backend.model.fram.dto.TokenTransferRequest;
 import com.farm2future.farm2future_backend.model.fram.dto.TokenTransferResponse;
 import com.farm2future.farm2future_backend.model.fram.service.TokenService;
@@ -22,8 +23,6 @@ public class TokenController {
 
     /**
      * GET /api/tokens
-     *
-     * 查询 Token 列表
      */
     @GetMapping
     public List<TokenListResponse> listTokens(
@@ -35,9 +34,19 @@ public class TokenController {
     }
 
     /**
-     * POST /api/tokens
+     * GET /api/tokens/transfers
      *
-     * 发行 Token
+     * 查询全部或某个农场的 Token 转账记录
+     */
+    @GetMapping("/transfers")
+    public List<TokenTransferRecordResponse> listTransferRecords(
+            @RequestParam(required = false) String farmId
+    ) {
+        return tokenService.listTransferRecords(farmId);
+    }
+
+    /**
+     * POST /api/tokens
      */
     @PostMapping
     public TokenIssueResponse issue(@Valid @RequestBody TokenIssueRequest request) {
@@ -46,8 +55,6 @@ public class TokenController {
 
     /**
      * POST /api/tokens/{tokenId}/transfer
-     *
-     * 转移 Token
      */
     @PostMapping("/{tokenId}/transfer")
     public TokenTransferResponse transfer(
@@ -60,7 +67,7 @@ public class TokenController {
     /**
      * GET /api/tokens/{tokenId}/transfers
      *
-     * 查询某个 Token 的转移历史
+     * 查询某一个 Token 的转账历史
      */
     @GetMapping("/{tokenId}/transfers")
     public List<TokenTransferHistoryResponse> listTransferHistory(
