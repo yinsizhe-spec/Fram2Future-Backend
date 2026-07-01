@@ -1,7 +1,15 @@
 package com.farm2future.farm2future_backend.model.fram.service;
 
 import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
-import com.farm2future.farm2future_backend.model.fram.dto.*;
+import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
+import com.farm2future.farm2future_backend.model.fram.dto.TokenIssueRequest;
+import com.farm2future.farm2future_backend.model.fram.dto.TokenIssueResponse;
+import com.farm2future.farm2future_backend.model.fram.dto.TokenListResponse;
+import com.farm2future.farm2future_backend.model.fram.dto.TokenPageResponse;
+import com.farm2future.farm2future_backend.model.fram.dto.TokenTransferHistoryResponse;
+import com.farm2future.farm2future_backend.model.fram.dto.TokenTransferRecordResponse;
+import com.farm2future.farm2future_backend.model.fram.dto.TokenTransferRequest;
+import com.farm2future.farm2future_backend.model.fram.dto.TokenTransferResponse;
 import com.farm2future.farm2future_backend.model.fram.entity.Farm;
 import com.farm2future.farm2future_backend.model.fram.entity.FarmBatch;
 import com.farm2future.farm2future_backend.model.fram.entity.TokenRecord;
@@ -15,342 +23,445 @@ import com.farm2future.farm2future_backend.model.fram.mapper.TransactionRecordMa
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.util.StringUtils;
 
+import java.math.BigDecimal;
 import java.security.SecureRandom;
 import java.time.LocalDateTime;
-import java.time.Year;
-import java.util.Collections;
-import java.util.HexFormat;
+import java.time.ZoneOffset;
+import java.time.format.DateTimeFormatter;
 import java.util.List;
-import java.util.Map;
-import java.util.stream.Collectors;
 
+/**
+ * Token 业务 Service。
+ */
 @Service
 @RequiredArgsConstructor
 public class TokenService {
 
     private final TokenRecordMapper tokenRecordMapper;
-    private final TransactionRecordMapper transactionRecordMapper;
     private final TokenTransferRecordMapper tokenTransferRecordMapper;
+    private final TransactionRecordMapper transactionRecordMapper;
     private final FarmBatchMapper farmBatchMapper;
     private final FarmMapper farmMapper;
 
     private static final SecureRandom SECURE_RANDOM = new SecureRandom();
 
     /**
-     * 发行 Token
+     * GET /api/tokens
+     *
+     * 查询 Token 列表，分页返回。
+     */
+    public TokenPageResponse listTokens(
+            String status,
+            String search,
+            Integer page,
+            Integer size
+    ) {
+        int pageNo = normalizePage(page);
+        int pageSize = normalizeSize(size);
+
+        Page<TokenRecord> pageParam = new Page<>(pageNo, pageSize);
+
+        LambdaQueryWrapper<TokenRecord> wrapper = new LambdaQueryWrapper<>();
+        wrapper.eq(TokenRecord::getDeleted, 0);
+
+        String queryStatus = normalizeStatus(status);
+
+        if (!"all".equals(queryStatus)) {
+            wrapper.eq(TokenRecord::getStatus, queryStatus);
+        }
+
+        if (StringUtils.hasText(search)) {
+            String keyword = search.trim();
+
+            wrapper.and(w -> w
+                    .like(TokenRecord::getId, keyword)
+                    .or()
+                    .like(TokenRecord::getAsset, keyword)
+                    .or()
+                    .like(TokenRecord::getOwner, keyword)
+            );
+        }
+
+        wrapper.orderByDesc(TokenRecord::getIssueDate);
+
+        Page<TokenRecord> resultPage = tokenRecordMapper.selectPage(pageParam, wrapper);
+
+        List<TokenListResponse> items = resultPage.getRecords()
+                .stream()
+                .map(this::toTokenListResponse)
+                .toList();
+
+        TokenPageResponse response = new TokenPageResponse();
+        response.setItems(items);
+        response.setTotal(resultPage.getTotal());
+        response.setPage(pageNo);
+        response.setSize(pageSize);
+
+        return response;
+    }
+
+    /**
+     * POST /api/tokens
+     *
+     * 发行 Token。
+     *
+     * 前端只传：
+     * crop_type
+     * batch_id
+     * quantity_kg
+     *
+     * 后端通过 batch_id 查询 farm_batch，
+     * 再通过 farm_id 查询 farm，
+     * 自动得到 farmId 和 owner。
      */
     @Transactional
     public TokenIssueResponse issue(TokenIssueRequest request) {
         LocalDateTime now = LocalDateTime.now();
 
-        FarmBatch batch = farmBatchMapper.selectOne(
-                new LambdaQueryWrapper<FarmBatch>()
-                        .eq(FarmBatch::getId, request.getBatchId())
-                        .eq(FarmBatch::getDeleted, 0)
-        );
+        FarmBatch batch = farmBatchMapper.selectById(request.getBatchId());
 
-        if (batch == null) {
-            throw new RuntimeException("Batch not found: " + request.getBatchId());
+        if (batch == null || Integer.valueOf(1).equals(batch.getDeleted())) {
+            throw new IllegalArgumentException("Batch not found: " + request.getBatchId());
         }
 
-        Farm farm = farmMapper.selectOne(
-                new LambdaQueryWrapper<Farm>()
-                        .eq(Farm::getId, batch.getFarmId())
-                        .eq(Farm::getDeleted, 0)
+        Farm farm = farmMapper.selectById(batch.getFarmId());
+
+        if (farm == null || Integer.valueOf(1).equals(farm.getDeleted())) {
+            throw new IllegalArgumentException("Farm not found for batch: " + request.getBatchId());
+        }
+
+        TokenRecord existingToken = tokenRecordMapper.selectOne(
+                new LambdaQueryWrapper<TokenRecord>()
+                        .eq(TokenRecord::getDeleted, 0)
+                        .eq(TokenRecord::getBatchId, request.getBatchId())
+                        .last("LIMIT 1")
         );
 
-        String ownerName = farm == null ? "Unknown Farm" : farm.getFarmName();
+        if (existingToken != null) {
+            throw new IllegalArgumentException("Token already issued for batch: " + request.getBatchId());
+        }
+
+        String cropType = resolveCropType(request, batch);
+
+        BigDecimal quantityKg = request.getQuantityKg();
+
+        if (quantityKg == null || quantityKg.compareTo(BigDecimal.ZERO) <= 0) {
+            throw new IllegalArgumentException("quantity_kg must be greater than 0");
+        }
+
+        if (batch.getYieldKg() != null && quantityKg.compareTo(batch.getYieldKg()) > 0) {
+            throw new IllegalArgumentException("quantity_kg cannot be greater than batch yield_kg");
+        }
 
         String tokenId = generateTokenId();
         String txHash = generateTxHash();
 
-        TokenRecord tokenRecord = new TokenRecord();
-        tokenRecord.setId(tokenId);
-        tokenRecord.setBatchId(request.getBatchId());
-        tokenRecord.setFarmId(batch.getFarmId());
-        tokenRecord.setCropType(request.getCropType());
-        tokenRecord.setAsset(request.getCropType() + " " + request.getBatchId());
-        tokenRecord.setQuantityKg(request.getQuantityKg());
-        tokenRecord.setTokenAmount(request.getQuantityKg());
-        tokenRecord.setOwner(ownerName);
-        tokenRecord.setOwnerAddress(null);
-        tokenRecord.setStatus("normal");
-        tokenRecord.setTxHash(txHash);
-        tokenRecord.setIssueDate(now);
-        tokenRecord.setDeleted(0);
-        tokenRecord.setCreateTime(now);
-        tokenRecord.setUpdateTime(now);
+        String ownerName = resolveOwnerName(farm);
+        String ownerAddress = generateOwnerAddress(farm.getId(), ownerName);
 
-        tokenRecordMapper.insert(tokenRecord);
+        TokenRecord token = new TokenRecord();
+        token.setId(tokenId);
+        token.setBatchId(batch.getId());
+        token.setFarmId(farm.getId());
+        token.setCropType(cropType);
+        token.setAsset(buildAssetName(cropType, batch.getId()));
+        token.setQuantityKg(quantityKg);
+        token.setTokenAmount(quantityKg);
+        token.setOwner(ownerName);
+        token.setOwnerAddress(ownerAddress);
+        token.setStatus("normal");
+        token.setTxHash(txHash);
+        token.setIssueDate(now);
+        token.setDeleted(0);
 
-        TransactionRecord transactionRecord = new TransactionRecord();
-        transactionRecord.setId(generateTransactionId());
-        transactionRecord.setTokenId(tokenId);
-        transactionRecord.setFromParty("System");
-        transactionRecord.setToParty(ownerName);
-        transactionRecord.setTxType("issue");
-        transactionRecord.setTxHash(txHash);
-        transactionRecord.setTxDate(now);
-        transactionRecord.setStatus("completed");
-        transactionRecord.setDeleted(0);
-        transactionRecord.setCreateTime(now);
-        transactionRecord.setUpdateTime(now);
+        tokenRecordMapper.insert(token);
 
-        transactionRecordMapper.insert(transactionRecord);
+        TransactionRecord transaction = new TransactionRecord();
+        transaction.setId(generateTransactionId());
+        transaction.setTokenId(tokenId);
+        transaction.setFromParty("System");
+        transaction.setToParty(ownerName);
+        transaction.setTxType("issue");
+        transaction.setTxHash(txHash);
+        transaction.setTxDate(now);
+        transaction.setStatus("completed");
+        transaction.setDeleted(0);
 
-        return new TokenIssueResponse(tokenId, txHash);
+        transactionRecordMapper.insert(transaction);
+
+        TokenIssueResponse response = new TokenIssueResponse();
+        response.setTokenId(tokenId);
+        response.setTxHash(txHash);
+
+        return response;
     }
 
     /**
-     * 查询 Token 转账记录
+     * POST /api/tokens/{tokenId}/transfer
      *
-     * 如果 farmId 为空：查询全部转账记录
-     * 如果 farmId 不为空：只查询该农场相关 Token 的转账记录
+     * 转移 Token。
+     */
+    @Transactional
+    public TokenTransferResponse transfer(
+            String tokenId,
+            TokenTransferRequest request
+    ) {
+        TokenRecord token = tokenRecordMapper.selectById(tokenId);
+
+        if (token == null || Integer.valueOf(1).equals(token.getDeleted())) {
+            throw new IllegalArgumentException("Token not found: " + tokenId);
+        }
+
+        if (!StringUtils.hasText(request.getNewOwnerAddress())) {
+            throw new IllegalArgumentException("new_owner_address is required");
+        }
+
+        LocalDateTime now = LocalDateTime.now();
+        String txHash = generateTxHash();
+
+        String oldOwner = token.getOwner();
+        String oldOwnerAddress = token.getOwnerAddress();
+
+        String newOwnerAddress = request.getNewOwnerAddress().trim();
+        String newOwner = newOwnerAddress;
+
+        token.setOwner(newOwner);
+        token.setOwnerAddress(newOwnerAddress);
+        tokenRecordMapper.updateById(token);
+
+        TokenTransferRecord transferRecord = new TokenTransferRecord();
+        transferRecord.setTokenId(tokenId);
+        transferRecord.setOldOwner(oldOwner);
+        transferRecord.setOldOwnerAddress(oldOwnerAddress);
+        transferRecord.setNewOwner(newOwner);
+        transferRecord.setNewOwnerAddress(newOwnerAddress);
+        transferRecord.setTxHash(txHash);
+        transferRecord.setTransferredAt(now);
+        transferRecord.setDeleted(0);
+
+        tokenTransferRecordMapper.insert(transferRecord);
+
+        TransactionRecord transaction = new TransactionRecord();
+        transaction.setId(generateTransactionId());
+        transaction.setTokenId(tokenId);
+        transaction.setFromParty(oldOwner);
+        transaction.setToParty(newOwner);
+        transaction.setTxType("transfer");
+        transaction.setTxHash(txHash);
+        transaction.setTxDate(now);
+        transaction.setStatus("completed");
+        transaction.setDeleted(0);
+
+        transactionRecordMapper.insert(transaction);
+
+        TokenTransferResponse response = new TokenTransferResponse();
+        response.setTxHash(txHash);
+        response.setTransferredAt(toIsoUtc(now));
+
+        return response;
+    }
+
+    /**
+     * GET /api/tokens/transfers
+     *
+     * 查询全部或某个 farmId 的转账记录。
      */
     public List<TokenTransferRecordResponse> listTransferRecords(String farmId) {
-        LambdaQueryWrapper<TokenTransferRecord> transferWrapper = new LambdaQueryWrapper<>();
+        LambdaQueryWrapper<TokenTransferRecord> wrapper = new LambdaQueryWrapper<>();
+        wrapper.eq(TokenTransferRecord::getDeleted, 0);
 
-        transferWrapper.eq(TokenTransferRecord::getDeleted, 0);
-
-        List<TokenRecord> tokenRecords;
-
-        if (farmId != null && !farmId.isBlank()) {
-            tokenRecords = tokenRecordMapper.selectList(
+        if (StringUtils.hasText(farmId)) {
+            List<TokenRecord> tokenRecords = tokenRecordMapper.selectList(
                     new LambdaQueryWrapper<TokenRecord>()
-                            .eq(TokenRecord::getFarmId, farmId)
                             .eq(TokenRecord::getDeleted, 0)
+                            .eq(TokenRecord::getFarmId, farmId.trim())
             );
-
-            if (tokenRecords.isEmpty()) {
-                return Collections.emptyList();
-            }
 
             List<String> tokenIds = tokenRecords.stream()
                     .map(TokenRecord::getId)
                     .toList();
 
-            transferWrapper.in(TokenTransferRecord::getTokenId, tokenIds);
-        } else {
-            tokenRecords = tokenRecordMapper.selectList(
-                    new LambdaQueryWrapper<TokenRecord>()
-                            .eq(TokenRecord::getDeleted, 0)
-            );
-        }
-
-        transferWrapper.orderByDesc(TokenTransferRecord::getTransferredAt);
-
-        List<TokenTransferRecord> transferRecords =
-                tokenTransferRecordMapper.selectList(transferWrapper);
-
-        Map<String, TokenRecord> tokenMap = tokenRecords.stream()
-                .collect(Collectors.toMap(
-                        TokenRecord::getId,
-                        token -> token,
-                        (oldValue, newValue) -> oldValue
-                ));
-
-        return transferRecords.stream().map(record -> {
-            TokenTransferRecordResponse response = new TokenTransferRecordResponse();
-
-            response.setId(record.getId());
-            response.setTokenId(record.getTokenId());
-
-            TokenRecord token = tokenMap.get(record.getTokenId());
-
-            if (token != null) {
-                response.setFarmId(token.getFarmId());
-                response.setAsset(token.getAsset());
-                response.setCropType(token.getCropType());
+            if (tokenIds.isEmpty()) {
+                return List.of();
             }
 
-            response.setOldOwner(record.getOldOwner());
-            response.setOldOwnerAddress(record.getOldOwnerAddress());
-            response.setNewOwner(record.getNewOwner());
-            response.setNewOwnerAddress(record.getNewOwnerAddress());
-            response.setTxHash(record.getTxHash());
-            response.setTransferredAt(record.getTransferredAt());
+            wrapper.in(TokenTransferRecord::getTokenId, tokenIds);
+        }
 
-            return response;
-        }).toList();
+        wrapper.orderByDesc(TokenTransferRecord::getTransferredAt);
+
+        return tokenTransferRecordMapper.selectList(wrapper)
+                .stream()
+                .map(this::toTokenTransferRecordResponse)
+                .toList();
     }
 
     /**
-     * 转移 Token 所有权
+     * GET /api/tokens/{tokenId}/transfers
      *
-     * 对应接口：
-     * POST /api/tokens/{tokenId}/transfer
+     * 查询某个 Token 的转账历史。
      */
-    @Transactional
-    public TokenTransferResponse transfer(String tokenId, TokenTransferRequest request) {
-        LocalDateTime now = LocalDateTime.now();
-
-        // 1. 校验 URL 里的 tokenId 和请求体里的 token_id 是否一致
-        if (request.getTokenId() != null && !request.getTokenId().equals(tokenId)) {
-            throw new RuntimeException("token_id in request body does not match tokenId in URL");
-        }
-
-        // 2. 查询 Token 是否存在
-        TokenRecord tokenRecord = tokenRecordMapper.selectOne(
-                new LambdaQueryWrapper<TokenRecord>()
-                        .eq(TokenRecord::getId, tokenId)
-                        .eq(TokenRecord::getDeleted, 0)
-        );
-
-        if (tokenRecord == null) {
-            throw new RuntimeException("Token not found: " + tokenId);
-        }
-
-        // 3. 保存旧 owner 信息
-        String oldOwner = tokenRecord.getOwner();
-        String oldOwnerAddress = tokenRecord.getOwnerAddress();
-
-        // 4. 生成模拟区块链交易 hash
-        String txHash = generateTxHash();
-
-        // 5. 更新 token_record 当前 owner 信息
-        // 目前接口只传 new_owner_address，没有传 new_owner 名称
-        // 所以 owner 这里先保存地址，方便前端查看
-        tokenRecord.setOwner(request.getNewOwnerAddress());
-        tokenRecord.setOwnerAddress(request.getNewOwnerAddress());
-        tokenRecord.setUpdateTime(now);
-
-        tokenRecordMapper.updateById(tokenRecord);
-
-        // 6. 保存 token_transfer_record 转移记录
-        TokenTransferRecord transferRecord = new TokenTransferRecord();
-        transferRecord.setTokenId(tokenId);
-        transferRecord.setOldOwner(oldOwner);
-        transferRecord.setOldOwnerAddress(oldOwnerAddress);
-        transferRecord.setNewOwner(request.getNewOwnerAddress());
-        transferRecord.setNewOwnerAddress(request.getNewOwnerAddress());
-        transferRecord.setTxHash(txHash);
-        transferRecord.setTransferredAt(now);
-        transferRecord.setDeleted(0);
-        transferRecord.setCreateTime(now);
-        transferRecord.setUpdateTime(now);
-
-        tokenTransferRecordMapper.insert(transferRecord);
-
-        // 7. 保存 transaction_record 审计交易记录
-        TransactionRecord transactionRecord = new TransactionRecord();
-        transactionRecord.setId(generateTransactionId());
-        transactionRecord.setTokenId(tokenId);
-        transactionRecord.setFromParty(oldOwner == null ? "Unknown" : oldOwner);
-        transactionRecord.setToParty(request.getNewOwnerAddress());
-        transactionRecord.setTxType("transfer");
-        transactionRecord.setTxHash(txHash);
-        transactionRecord.setTxDate(now);
-        transactionRecord.setStatus("completed");
-        transactionRecord.setDeleted(0);
-        transactionRecord.setCreateTime(now);
-        transactionRecord.setUpdateTime(now);
-
-        transactionRecordMapper.insert(transactionRecord);
-
-        return new TokenTransferResponse(txHash, now);
-    }
-
-    public List<TokenListResponse> listTokens(String status, String owner, String cropType) {
-        LambdaQueryWrapper<TokenRecord> wrapper = new LambdaQueryWrapper<>();
-
-        wrapper.eq(TokenRecord::getDeleted, 0);
-
-        if (status != null && !status.isBlank()) {
-            wrapper.eq(TokenRecord::getStatus, status);
-        }
-
-        if (owner != null && !owner.isBlank()) {
-            wrapper.like(TokenRecord::getOwner, owner);
-        }
-
-        if (cropType != null && !cropType.isBlank()) {
-            wrapper.eq(TokenRecord::getCropType, cropType);
-        }
-
-        wrapper.orderByDesc(TokenRecord::getIssueDate);
-
-        List<TokenRecord> records = tokenRecordMapper.selectList(wrapper);
-
-        return records.stream().map(record -> {
-            TokenListResponse response = new TokenListResponse();
-
-            response.setTokenId(record.getId());
-            response.setBatchId(record.getBatchId());
-            response.setFarmId(record.getFarmId());
-            response.setCropType(record.getCropType());
-            response.setAsset(record.getAsset());
-            response.setQuantityKg(record.getQuantityKg());
-            response.setTokenAmount(record.getTokenAmount());
-            response.setOwner(record.getOwner());
-            response.setOwnerAddress(record.getOwnerAddress());
-            response.setStatus(record.getStatus());
-            response.setTxHash(record.getTxHash());
-            response.setIssueDate(record.getIssueDate());
-
-            return response;
-        }).toList();
-    }
-
     public List<TokenTransferHistoryResponse> listTransferHistory(String tokenId) {
-        TokenRecord tokenRecord = tokenRecordMapper.selectOne(
-                new LambdaQueryWrapper<TokenRecord>()
-                        .eq(TokenRecord::getId, tokenId)
-                        .eq(TokenRecord::getDeleted, 0)
-        );
+        LambdaQueryWrapper<TokenTransferRecord> wrapper = new LambdaQueryWrapper<>();
 
-        if (tokenRecord == null) {
-            throw new RuntimeException("Token not found: " + tokenId);
+        wrapper.eq(TokenTransferRecord::getDeleted, 0)
+                .eq(TokenTransferRecord::getTokenId, tokenId)
+                .orderByDesc(TokenTransferRecord::getTransferredAt);
+
+        return tokenTransferRecordMapper.selectList(wrapper)
+                .stream()
+                .map(this::toTokenTransferHistoryResponse)
+                .toList();
+    }
+
+    private TokenListResponse toTokenListResponse(TokenRecord record) {
+        TokenListResponse response = new TokenListResponse();
+
+        response.setId(record.getId());
+        response.setAsset(record.getAsset());
+        response.setOwner(record.getOwner());
+        response.setStatus(record.getStatus());
+        response.setDate(toIsoUtc(record.getIssueDate()));
+
+        return response;
+    }
+
+    private TokenTransferRecordResponse toTokenTransferRecordResponse(TokenTransferRecord record) {
+        TokenTransferRecordResponse response = new TokenTransferRecordResponse();
+
+        response.setId(record.getId());
+        response.setTokenId(record.getTokenId());
+        response.setOldOwner(record.getOldOwner());
+        response.setOldOwnerAddress(record.getOldOwnerAddress());
+        response.setNewOwner(record.getNewOwner());
+        response.setNewOwnerAddress(record.getNewOwnerAddress());
+        response.setTxHash(record.getTxHash());
+        response.setTransferredAt(toIsoUtc(record.getTransferredAt()));
+
+        return response;
+    }
+
+    private TokenTransferHistoryResponse toTokenTransferHistoryResponse(TokenTransferRecord record) {
+        TokenTransferHistoryResponse response = new TokenTransferHistoryResponse();
+
+        response.setId(record.getId());
+        response.setTokenId(record.getTokenId());
+        response.setOldOwner(record.getOldOwner());
+        response.setOldOwnerAddress(record.getOldOwnerAddress());
+        response.setNewOwner(record.getNewOwner());
+        response.setNewOwnerAddress(record.getNewOwnerAddress());
+        response.setTxHash(record.getTxHash());
+        response.setTransferredAt(toIsoUtc(record.getTransferredAt()));
+
+        return response;
+    }
+
+    private String resolveCropType(TokenIssueRequest request, FarmBatch batch) {
+        if (StringUtils.hasText(request.getCropType())) {
+            return request.getCropType().trim();
         }
 
-        List<TokenTransferRecord> records = tokenTransferRecordMapper.selectList(
-                new LambdaQueryWrapper<TokenTransferRecord>()
-                        .eq(TokenTransferRecord::getTokenId, tokenId)
-                        .eq(TokenTransferRecord::getDeleted, 0)
-                        .orderByDesc(TokenTransferRecord::getTransferredAt)
-        );
+        if (StringUtils.hasText(batch.getCropType())) {
+            return batch.getCropType().trim();
+        }
 
-        return records.stream().map(record -> {
-            TokenTransferHistoryResponse response = new TokenTransferHistoryResponse();
+        throw new IllegalArgumentException("crop_type is required");
+    }
 
-            response.setId(record.getId());
-            response.setTokenId(record.getTokenId());
-            response.setOldOwner(record.getOldOwner());
-            response.setOldOwnerAddress(record.getOldOwnerAddress());
-            response.setNewOwner(record.getNewOwner());
-            response.setNewOwnerAddress(record.getNewOwnerAddress());
-            response.setTxHash(record.getTxHash());
-            response.setTransferredAt(record.getTransferredAt());
+    private String resolveOwnerName(Farm farm) {
+        if (StringUtils.hasText(farm.getFarmName())) {
+            return farm.getFarmName().trim();
+        }
 
-            return response;
-        }).toList();
+        if (StringUtils.hasText(farm.getOwnerName())) {
+            return farm.getOwnerName().trim();
+        }
+
+        return farm.getId();
+    }
+
+    private int normalizePage(Integer page) {
+        if (page == null || page < 1) {
+            return 1;
+        }
+
+        return page;
+    }
+
+    private int normalizeSize(Integer size) {
+        if (size == null || size < 1) {
+            return 20;
+        }
+
+        return Math.min(size, 100);
+    }
+
+    private String normalizeStatus(String status) {
+        if (!StringUtils.hasText(status)) {
+            return "all";
+        }
+
+        String value = status.trim();
+
+        if ("all".equals(value)
+                || "normal".equals(value)
+                || "flagged".equals(value)
+                || "at-risk".equals(value)) {
+            return value;
+        }
+
+        return "all";
+    }
+
+    private String buildAssetName(String cropType, String batchId) {
+        String crop = StringUtils.hasText(cropType) ? cropType.trim() : "Crop";
+        String batch = StringUtils.hasText(batchId) ? batchId.trim() : "Batch";
+
+        return crop + " " + batch;
+    }
+
+    private String toIsoUtc(LocalDateTime time) {
+        if (time == null) {
+            return null;
+        }
+
+        return time
+                .atOffset(ZoneOffset.UTC)
+                .format(DateTimeFormatter.ISO_INSTANT);
     }
 
     private String generateTokenId() {
-        int year = Year.now().getValue();
-
-        Long count = tokenRecordMapper.selectCount(
-                new LambdaQueryWrapper<TokenRecord>()
-                        .likeRight(TokenRecord::getId, "TKN-" + year + "-")
-        );
-
-        return String.format("TKN-%d-%03d", year, count + 1);
+        return "TKN-" + System.currentTimeMillis() + "-" + SECURE_RANDOM.nextInt(1000);
     }
 
     private String generateTransactionId() {
-        int year = Year.now().getValue();
-
-        Long count = transactionRecordMapper.selectCount(
-                new LambdaQueryWrapper<TransactionRecord>()
-                        .likeRight(TransactionRecord::getId, "TXN-" + year + "-")
-        );
-
-        return String.format("TXN-%d-%03d", year, count + 1);
+        return "TXN-" + System.currentTimeMillis() + "-" + SECURE_RANDOM.nextInt(1000);
     }
 
     private String generateTxHash() {
-        byte[] bytes = new byte[32];
-        SECURE_RANDOM.nextBytes(bytes);
-        return "0x" + HexFormat.of().formatHex(bytes);
+        StringBuilder sb = new StringBuilder("0x");
+
+        for (int i = 0; i < 64; i++) {
+            sb.append(Integer.toHexString(SECURE_RANDOM.nextInt(16)));
+        }
+
+        return sb.toString();
+    }
+
+    private String generateOwnerAddress(String farmId, String ownerName) {
+        String seed = farmId + "-" + ownerName + "-" + System.nanoTime();
+
+        StringBuilder sb = new StringBuilder("0x");
+
+        int hash = seed.hashCode();
+
+        for (int i = 0; i < 40; i++) {
+            int value = Math.abs(hash + i * 31 + SECURE_RANDOM.nextInt(16)) % 16;
+            sb.append(Integer.toHexString(value));
+        }
+
+        return sb.toString();
     }
 }

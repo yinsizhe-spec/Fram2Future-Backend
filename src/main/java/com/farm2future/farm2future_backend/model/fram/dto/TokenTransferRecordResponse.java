@@ -37,5 +37,5 @@ public class TokenTransferRecordResponse {
     private String txHash;
 
     @JsonProperty("transferred_at")
-    private LocalDateTime transferredAt;
+    private String transferredAt;
 }
