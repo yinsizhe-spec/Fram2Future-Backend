@@ -2,23 +2,33 @@
 
 Farm2Future Backend is the backend service for the Farm2Future agricultural digital management platform.
 
-This project provides RESTful APIs for the Farm2Future frontend, including user authentication, dashboard statistics, farm data management, ESG score records, token reward records, and transaction records.
+This backend provides RESTful APIs for the Farm2Future frontend, including user authentication, dashboard statistics, farm data submission, ESG report data, ESG report export, token records, token transfer records, and system health monitoring.
 
 ---
 
 ## 1. Project Overview
 
-Farm2Future is an agricultural digital platform designed to support farm management, ESG performance tracking, and token-based reward records.
+Farm2Future is an agricultural digital platform designed to support:
+
+- Farm data management
+- ESG performance tracking
+- Dashboard data statistics
+- Token reward records
+- Smart contract transfer records
+- AI ESG report support
+- CSV / PDF ESG report export
+- Frontend and backend integration
 
 The backend system is responsible for:
 
-- Providing REST API services for the frontend
-- Managing user login and role-based access
-- Managing farm information
-- Managing farm production and ESG-related data
+- Providing REST APIs for the frontend
+- Managing user login and JWT authentication
+- Managing farm and farm-related data
+- Receiving farm data submitted by users
+- Calculating or storing ESG-related data
 - Providing dashboard overview statistics
-- Recording token rewards
-- Recording transaction history
+- Providing ESG report export APIs
+- Recording token rewards and token transfer history
 - Connecting the frontend with the MySQL database
 - Supporting future blockchain / smart contract integration
 
@@ -38,13 +48,12 @@ The backend system is responsible for:
 | Lombok | Reduces boilerplate Java code |
 | Spring Boot Actuator | Health check and monitoring |
 | Springdoc OpenAPI | Swagger API documentation |
-| Maven | Dependency management and project build tool |
+| Maven | Dependency management and build tool |
 
 ---
 
 ## 3. Project Structure
 
-```text
 Fram2Future-Backend
 ├── sql
 │   └── database scripts
@@ -69,7 +78,6 @@ Fram2Future-Backend
 ├── mvnw
 ├── mvnw.cmd
 └── README.md
-```
 
 ---
 
@@ -79,21 +87,34 @@ Fram2Future-Backend
 
 The backend supports user login through JWT authentication.
 
-Example endpoint:
+Endpoint:
 
-```http
 POST /api/auth/login
-```
 
 Example request:
 
-```json
 {
   "email": "demo@farmer.com",
   "password": "123456",
   "role": "farmer"
 }
-```
+
+Example response:
+
+{
+  "code": 200,
+  "message": "success",
+  "data": {
+    "token": "jwt-token",
+    "user": {
+      "id": "u1",
+      "name": "Joseph",
+      "email": "demo@farmer.com",
+      "role": "farmer",
+      "entityName": "Green Valley Farm"
+    }
+  }
+}
 
 Supported test users:
 
@@ -109,50 +130,24 @@ Supported test users:
 
 The dashboard API provides summary data for the frontend home page.
 
-Example endpoint:
+Endpoint:
 
-```http
 GET /api/dashboard/overview
-```
 
-Example response:
-
-```json
-{
-  "code": 200,
-  "message": "success",
-  "data": {
-    "stats": {
-      "totalFarms": 3,
-      "totalTokens": 1200,
-      "totalTransactions": 15,
-      "averageEsgScore": 86.5
-    },
-    "monthlyComparison": {
-      "farmsChange": 0,
-      "tokensChange": 120,
-      "transactionsChange": 3,
-      "esgScoreChange": 2.5
-    }
-  }
-}
-```
+The dashboard data focuses on current-month statistics and comparison with the previous month.
 
 ---
 
-### 4.3 Farm Data Management
+### 4.3 Farm Data Submission
 
-The backend is designed to support farm data submission from the frontend.
+The backend supports farm data submission from the frontend.
 
-Example endpoint:
+Endpoint:
 
-```http
 POST /api/farms/{farmId}/data
-```
 
 Example request:
 
-```json
 {
   "period": "2026-Q2",
   "yield_kg": 1200,
@@ -163,32 +158,85 @@ Example request:
   "fair_wage_flag": true,
   "compliance_pass": true
 }
-```
 
-This data can be used later for ESG score calculation and token reward generation.
+This submitted data can be used for:
+
+- ESG score calculation
+- Dashboard statistics
+- Token reward calculation
+- AI ESG report generation
+- ESG report export
 
 ---
 
-### 4.4 ESG Score Records
+### 4.4 ESG Report Data
 
-The backend stores ESG score records for farms.
+The backend supports ESG-related data records for farms.
 
-ESG scoring can include:
+ESG data may include:
 
 - Environmental score
 - Social score
 - Governance score
 - Overall ESG score
-- Score period
-- Related farm ID
+- Reporting period
+- Farm ID
+- Farm / entity information
+- Water usage
+- Fertilizer usage
+- Pesticide usage
+- Yield data
+- Labor and compliance data
+
+The frontend should request farm / entity data from the backend instead of using hard-coded values.
 
 ---
 
-### 4.5 Token Reward Records
+### 4.5 ESG Report Export
+
+The backend supports ESG report export.
+
+Endpoint:
+
+GET /api/reports/esg/export?format=csv|pdf&farmId={farmId}&from={from}
+
+Example:
+
+GET /api/reports/esg/export?format=csv&farmId=farm_001&from=2026-06
+
+If farmId or from is not provided, the backend can return all available matching data depending on the service logic.
+
+Download endpoint:
+
+GET /api/reports/esg/export/download/{filename}
+
+Supported formats:
+
+| Format | Description |
+|---|---|
+| csv | Export ESG report as CSV |
+| pdf | Export ESG report as PDF |
+
+---
+
+### 4.6 Token Records
 
 The backend stores token reward records for farms.
 
-Possible token reward logic:
+Token reward records may include:
+
+- Token ID
+- Farm ID
+- Batch ID
+- Crop type
+- Quantity
+- Token amount
+- Owner
+- Owner address
+- Transaction hash
+- Token status
+
+Possible reward logic:
 
 - Higher ESG score gives more token rewards
 - Compliant farm data receives reward tokens
@@ -196,14 +244,43 @@ Possible token reward logic:
 
 ---
 
-### 4.6 Transaction Records
+### 4.7 Smart Contract Transfer Records
+
+The backend supports token transfer records for the Smart Contract Transfer page.
+
+Transfer-related APIs may include:
+
+POST /api/tokens/{tokenId}/transfer
+
+GET /api/tokens/transfers
+
+GET /api/tokens/transfers?farmId={farmId}
+
+The transfer history should come from the backend API instead of frontend mock data.
+
+Transfer records may include:
+
+- Transfer ID
+- Token ID
+- Farm ID
+- Old owner
+- Old owner address
+- New owner
+- New owner address
+- Transaction hash
+- Transfer time
+
+---
+
+### 4.8 Transaction Records
 
 The backend stores transaction history, such as:
 
 - Token transfers
 - Farm product transactions
 - Buyer-related purchase records
-- Reward distribution history
+- Reward distribution records
+- Smart contract transfer history
 
 ---
 
@@ -213,27 +290,41 @@ All backend APIs should follow a unified response format.
 
 Success response:
 
-```json
 {
   "code": 200,
   "message": "success",
   "data": {}
 }
-```
 
 Failure response:
 
-```json
 {
   "code": 400,
   "message": "error message",
   "data": null
 }
-```
 
 ---
 
-## 6. Environment Requirements
+## 6. Useful API List
+
+| Method | Endpoint | Description |
+|---|---|---|
+| POST | `/api/auth/login` | User login |
+| GET | `/api/dashboard/overview` | Dashboard overview statistics |
+| POST | `/api/farms/{farmId}/data` | Submit farm data |
+| GET | `/api/reports/esg/export` | Export ESG report |
+| GET | `/api/reports/esg/export/download/{filename}` | Download exported ESG report |
+| POST | `/api/tokens/{tokenId}/transfer` | Transfer token ownership |
+| GET | `/api/tokens/transfers` | Query all token transfer records |
+| GET | `/api/tokens/transfers?farmId={farmId}` | Query transfer records by farm |
+| GET | `/actuator/health` | Backend health check |
+| GET | `/v3/api-docs` | OpenAPI JSON |
+| GET | `/swagger-ui/index.html` | Swagger UI |
+
+---
+
+## 7. Environment Requirements
 
 Before running this project, make sure the following tools are installed:
 
@@ -244,51 +335,40 @@ Before running this project, make sure the following tools are installed:
 
 Check Java version:
 
-```bash
 java -version
-```
 
 Check Maven version:
 
-```bash
 mvn -version
-```
 
 ---
 
-## 7. Database Setup
+## 8. Database Setup
 
-### 7.1 Create Database
+### 8.1 Create Database
 
 Login to MySQL and run:
 
-```sql
 CREATE DATABASE farm2future
 CHARACTER SET utf8mb4
 COLLATE utf8mb4_unicode_ci;
-```
 
-### 7.2 Import SQL Scripts
+### 8.2 Import SQL Scripts
 
 If SQL files are provided in the `sql` directory, import them into MySQL:
 
-```bash
 mysql -u root -p farm2future < sql/your_sql_file.sql
-```
 
 ---
 
-## 8. Configuration
+## 9. Configuration
 
 The main configuration file is:
 
-```text
 src/main/resources/application.yml
-```
 
 Recommended database configuration:
 
-```yml
 server:
   port: 7020
 
@@ -306,7 +386,6 @@ app:
   jwt:
     secret: ${JWT_SECRET}
     expire-hours: 24
-```
 
 Important:
 
@@ -316,164 +395,155 @@ Use environment variables instead.
 
 Linux / macOS:
 
-```bash
 export DB_USERNAME=root
 export DB_PASSWORD=your_password
 export JWT_SECRET=farm2future-enterprise-secret-key-change-this-to-a-long-random-string
-```
 
 Windows CMD:
 
-```cmd
 set DB_USERNAME=root
 set DB_PASSWORD=your_password
 set JWT_SECRET=farm2future-enterprise-secret-key-change-this-to-a-long-random-string
-```
 
 Windows PowerShell:
 
-```powershell
 $env:DB_USERNAME="root"
 $env:DB_PASSWORD="your_password"
 $env:JWT_SECRET="farm2future-enterprise-secret-key-change-this-to-a-long-random-string"
-```
 
 ---
 
-## 9. Run Locally
+## 10. Run Locally
 
-### 9.1 Clone Repository
+### 10.1 Clone Repository
 
-```bash
 git clone https://github.com/yinsizhe-spec/Fram2Future-Backend.git
 cd Fram2Future-Backend
-```
 
-### 9.2 Start Project
+### 10.2 Start Project
 
 Using Maven:
 
-```bash
 mvn spring-boot:run
-```
 
 Using Maven Wrapper on Linux / macOS:
 
-```bash
 ./mvnw spring-boot:run
-```
 
 Using Maven Wrapper on Windows:
 
-```cmd
 mvnw.cmd spring-boot:run
-```
 
 After startup, the backend should run at:
 
-```text
 http://localhost:7020
-```
 
 ---
 
-## 10. Build Project
+## 11. Build Project
 
 Package the project:
 
-```bash
 mvn clean package
-```
 
 Skip tests when packaging:
 
-```bash
 mvn clean package -DskipTests
-```
 
 Run the JAR file:
 
-```bash
 java -jar target/farm2future-backend-0.0.1-SNAPSHOT.jar
-```
 
 ---
 
-## 11. Server Deployment
+## 12. Server Deployment
 
-### 11.1 Build JAR
+### 12.1 Build JAR
 
-```bash
 mvn clean package -DskipTests
-```
 
-### 11.2 Upload JAR to Server
+### 12.2 Upload JAR to Server
 
 Example server directory:
 
-```text
 /root/farm2future/
-```
 
-### 11.3 Start Backend Service
+### 12.3 Start Backend Service
 
-```bash
 nohup java -jar farm2future-backend.jar > app.log 2>&1 &
-```
 
-### 11.4 Check Running Process
+### 12.4 Check Running Process
 
-```bash
 ps -ef | grep farm2future-backend
-```
 
-### 11.5 View Logs
+### 12.5 View Logs
 
-```bash
 tail -f app.log
-```
+
+### 12.6 Check Port
+
+ss -tulpn | grep 7020
 
 ---
 
-## 12. API Documentation
+## 13. API Documentation
 
 This project uses Springdoc OpenAPI.
 
 After starting the backend, visit:
 
-```text
 http://localhost:7020/swagger-ui/index.html
-```
 
 OpenAPI JSON:
 
-```text
 http://localhost:7020/v3/api-docs
-```
 
 ---
 
-## 13. Health Check
+## 14. Health Check
 
 Spring Boot Actuator can be used to check the backend status.
 
 Health check endpoint:
 
-```http
 GET /actuator/health
-```
 
 Example:
 
-```text
 http://localhost:7020/actuator/health
-```
+
+Example response:
+
+{
+  "status": "UP"
+}
 
 ---
 
-## 14. Common Issues
+## 15. Frontend Integration Notes
 
-### 14.1 MySQL Connection Failed
+The frontend should connect to this backend by setting the API base URL correctly.
+
+Example frontend `.env`:
+
+VITE_USE_MOCK=false
+VITE_API_BASE_URL=http://64.176.57.254:7020
+
+Important frontend integration requirements:
+
+- Do not use mock data when real backend APIs are available.
+- Dashboard statistics should come from `/api/dashboard/overview`.
+- Farm data submission should call `/api/farms/{farmId}/data`.
+- ESG report export should call `/api/reports/esg/export`.
+- Smart Contract Transfer history should call backend transfer record APIs.
+- Farm / Entity values in AI ESG Report should come from backend data.
+- Frontend should handle loading, success, and error states clearly.
+
+---
+
+## 16. Common Issues
+
+### 16.1 MySQL Connection Failed
 
 Check the following:
 
@@ -486,29 +556,23 @@ Check the following:
 
 ---
 
-### 14.2 Public Key Retrieval is not allowed
+### 16.2 Public Key Retrieval is not allowed
 
 If this error appears:
 
-```text
 Public Key Retrieval is not allowed
-```
 
 Add this parameter to the JDBC URL:
 
-```text
 allowPublicKeyRetrieval=true
-```
 
 Example:
 
-```yml
 url: jdbc:mysql://localhost:3306/farm2future?allowPublicKeyRetrieval=true&useSSL=false
-```
 
 ---
 
-### 14.3 Backend Started but Frontend Cannot Access API
+### 16.3 Backend Started but Frontend Cannot Access API
 
 Check the following:
 
@@ -517,92 +581,79 @@ Check the following:
 - Server firewall has opened the backend port
 - Cloud server security group allows the port
 - Frontend `.env` API base URL is correct
+- Frontend mock mode is disabled
 - CORS configuration allows the frontend domain
 - Spring Security configuration allows the target endpoint
 
 ---
 
-### 14.4 Port Already in Use
+### 16.4 Port Already in Use
 
 Check port usage:
 
-```bash
 lsof -i:7020
-```
+
+Or:
+
+ss -tulpn | grep 7020
 
 Kill the process:
 
-```bash
 kill -9 PID
-```
 
 Or change the port in `application.yml`:
 
-```yml
 server:
   port: 7021
-```
 
 ---
 
-## 15. Useful API List
+### 16.5 403 Forbidden
 
-| Method | Endpoint | Description |
-|---|---|---|
-| POST | /api/auth/login | User login |
-| GET | /api/dashboard/overview | Dashboard overview statistics |
-| POST | /api/farms/{farmId}/data | Submit farm data |
-| GET | /actuator/health | Backend health check |
-| GET | /v3/api-docs | OpenAPI JSON |
-| GET | /swagger-ui/index.html | Swagger UI page |
+If the frontend receives `403 Forbidden`, check:
+
+- Whether Spring Security permits the requested endpoint
+- Whether JWT token is required
+- Whether the frontend sends the token correctly
+- Whether CORS configuration is correct
+- Whether preflight `OPTIONS` requests are allowed
 
 ---
 
-## 16. Git Commit Guide
+### 16.6 No Acceptable Representation
+
+If this error appears:
+
+HttpMediaTypeNotAcceptableException: No acceptable representation
+
+Possible solutions:
+
+- Make sure response DTO has getters and setters
+- Make sure Lombok is working correctly
+- Make sure the returned object can be serialized to JSON
+- Restart the backend project after modifying DTO or response classes
+
+---
+
+## 17. Git Commit Example
 
 After updating the README:
 
-```bash
 git add README.md
-git commit -m "docs: update backend README"
+git commit -m "docs: update backend README documentation"
 git push origin main
-```
 
 ---
 
-## 17. Future Development Plan
+## 18. Project Status
 
-Planned improvements:
+Current backend supports the core structure for Farm2Future frontend integration, including authentication, dashboard data, farm data submission, ESG-related data, token records, transfer records, and export support.
 
-- Complete all frontend API contract endpoints
-- Improve farm data submission API
-- Add ESG score calculation logic
-- Add token reward calculation logic
-- Add blockchain smart contract integration
-- Improve role-based permission control
-- Add more unit tests and integration tests
-- Add Docker deployment support
-- Add Jenkins or GitHub Actions CI/CD
-- Improve production security configuration
+Future improvements may include:
 
----
-
-## 18. Repository
-
-Backend repository:
-
-```text
-https://github.com/yinsizhe-spec/Fram2Future-Backend
-```
-
-Frontend repository:
-
-```text
-https://github.com/Joseph9807/Farm2Future-Frontend-V4.1
-```
-
----
-
-## 19. Team
-
-This project is developed by the Farm2Future team.
+- More complete ESG score calculation logic
+- Scheduled daily statistics calculation
+- More detailed API documentation
+- Real blockchain smart contract integration
+- More complete frontend-backend integration testing
+- Deployment automation with CI/CD
