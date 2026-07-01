@@ -193,7 +193,7 @@ public class AuthService {
          * 例如 supplier、auditor，
          * 这里也需要同步扩展。
          */
-        if (!role.equals("farmer") && !role.equals("regulator") && !role.equals("admin")) {
+        if (!role.equals("farmer") && !role.equals("regulator") && !role.equals("buyer")) {
             throw new BusinessException(
                     HttpStatus.UNPROCESSABLE_ENTITY,
                     "VALIDATION_ERROR",
