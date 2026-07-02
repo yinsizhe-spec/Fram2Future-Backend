@@ -11,9 +11,10 @@ import java.util.List;
 
 @Mapper
 public interface DashboardMapper {
+
     @Select("""
             SELECT
-                COALESCE(ROUND(AVG(s.total_score), 0), 0) AS overall,
+                COALESCE(ROUND(AVG(s.overall_score), 0), 0) AS overall,
                 COALESCE(ROUND(AVG(s.environmental_score), 0), 0) AS environmental,
                 COALESCE(ROUND(AVG(s.social_score), 0), 0) AS social,
                 COALESCE(ROUND(AVG(s.governance_score), 0), 0) AS governance
@@ -32,7 +33,7 @@ public interface DashboardMapper {
     @Select("""
             SELECT
                 s.period AS period,
-                COALESCE(ROUND(AVG(s.total_score), 0), 0) AS value
+                COALESCE(ROUND(AVG(s.overall_score), 0), 0) AS value
             FROM esg_score s
             LEFT JOIN farm f ON s.farm_id = f.id
             WHERE s.deleted = 0

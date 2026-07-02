@@ -23,11 +23,18 @@ public class EsgScore {
 
     private BigDecimal governanceScore;
 
-    private BigDecimal totalScore;
+    private BigDecimal overallScore;
 
-    /**
-     * 月份，例如 2026-07
-     */
+    private String grade;
+
+    private String suggestion;
+
+    private Integer anomalyDetected;
+
+    private Integer esgCompliant;
+
+    private BigDecimal suggestedTokenAmount;
+
     private String period;
 
     private Integer deleted;
